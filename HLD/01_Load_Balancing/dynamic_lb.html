@@ -1,0 +1,231 @@
+<!-- # HLD/01_Load_Balancing/dynamic_lb.html - Leaf Content Page -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dynamic Load Balancing - HLD</title>
+  <link rel="stylesheet" href="../../styles.css">
+</head>
+<body>
+  <nav class="sidebar">
+    <div class="sidebar-header"><h2>Study Notes</h2></div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Navigation</div>
+      <a href="../../index.html">🏠 Dashboard</a>
+      <a href="../index.html">🌐 HLD Overview</a>
+      <a href="index.html">⚖️ Load Balancing</a>
+      <a href="static_lb.html" class="sub-link">↳ Static LB</a>
+      <a href="dynamic_lb.html" class="active">📄 Dynamic LB</a>
+      <a href="sticky_sessions.html" class="sub-link">↳ Sticky Sessions</a>
+    </div>
+  </nav>
+
+  <main class="main-content">
+    <div class="breadcrumb">
+      <a href="../../index.html">Home</a><span class="sep">/</span>
+      <a href="../index.html">HLD</a><span class="sep">/</span>
+      <a href="index.html">Load Balancing</a><span class="sep">/</span>
+      <span>Dynamic Load Balancing</span>
+    </div>
+
+    <h1>Dynamic Load Balancing</h1>
+    <p style="color: var(--text-light);">
+      Algorithms that consider the real-time state of servers — active connections, response time, CPU load — 
+      to make smarter routing decisions.
+    </p>
+
+    <h2>1. Least Connections</h2>
+    <p>
+      Routes the new request to the server with the fewest active connections. 
+      This assumes all requests take roughly the same time to process.
+    </p>
+
+    <div class="info-box">
+      <strong>🔑 Key Idea</strong>
+      A server with fewer active connections is likely less busy. Send the new request there.
+    </div>
+
+    <h3>Example Walkthrough</h3>
+    <p>Initial state: <code>S1=2</code> connections, <code>S2=5</code> connections, <code>S3=1</code> connection.</p>
+
+    <table>
+      <tr><th>Step</th><th>Server States</th><th>New Request Goes To</th><th>Reason</th></tr>
+      <tr><td>Start</td><td>S1=2, S2=5, S3=1</td><td>—</td><td>Initial state</td></tr>
+      <tr><td>Req 1</td><td>S1=2, S2=5, S3=1</td><td><strong>S3</strong></td><td>Lowest connections (1)</td></tr>
+      <tr><td>After</td><td>S1=2, S2=5, S3=2</td><td>—</td><td>S3 now has 2</td></tr>
+      <tr><td>Req 2</td><td>S1=2, S2=5, S3=2</td><td><strong>S1</strong></td><td>Tie at 2, pick first (or round-robin tie-break)</td></tr>
+      <tr><td>After</td><td>S1=3, S2=5, S3=2</td><td>—</td><td>S1 now has 3</td></tr>
+      <tr><td>Req 3</td><td>S1=3, S2=5, S3=2</td><td><strong>S3</strong></td><td>Lowest connections (2)</td></tr>
+    </table>
+
+    <pre><code>import java.util.HashMap;
+import java.util.Map;
+
+public class LeastConnectionsLoadBalancer {
+    private final Map<String, Integer> servers = new HashMap<>();
+
+    public LeastConnectionsLoadBalancer() {
+        servers.put("S1", 2);
+        servers.put("S2", 5);
+        servers.put("S3", 1);
+    }
+
+    public synchronized String leastConnections() {
+        String bestServer = null;
+        int minConnections = Integer.MAX_VALUE;
+
+        for (Map.Entry<String, Integer> entry : servers.entrySet()) {
+            if (entry.getValue() < minConnections) {
+                minConnections = entry.getValue();
+                bestServer = entry.getKey();
+            }
+        }
+        return bestServer;
+    }
+
+    public void routeRequest() {
+        String server = leastConnections();
+        servers.put(server, servers.get(server) + 1);
+        System.out.println("Request routed to " + server);
+    }
+
+    public static void main(String[] args) {
+        LeastConnectionsLoadBalancer lb = new LeastConnectionsLoadBalancer();
+        lb.routeRequest();  // S3
+    }
+}</code></pre>
+
+    <h2>2. Weighted Least Connections</h2>
+    <p>
+      Combines Least Connections with server weights. A powerful server can handle more connections 
+      before being considered "full."
+    </p>
+
+    <p><strong>Formula:</strong> <code>Score = Active Connections / Weight</code></p>
+    <p>The server with the <em>lowest score</em> gets the request.</p>
+
+    <table>
+      <tr><th>Server</th><th>Connections</th><th>Weight</th><th>Score</th><th>Decision</th></tr>
+      <tr><td>S1</td><td>6</td><td>3</td><td>6/3 = <strong>2.0</strong></td><td>✅ Pick this (lowest)</td></tr>
+      <tr><td>S2</td><td>4</td><td>2</td><td>4/2 = <strong>2.0</strong></td><td>Tie with S1</td></tr>
+      <tr><td>S3</td><td>3</td><td>1</td><td>3/1 = <strong>3.0</strong></td><td>Higher score</td></tr>
+    </table>
+
+    <div class="info-box warning">
+      <strong>⚠️ Tie-Breaking</strong>
+      When scores tie (like S1 and S2 above), you can use Round Robin as a tie-breaker, 
+      or simply pick the first one in the list.
+    </div>
+
+    <h2>3. Least Response Time</h2>
+    <p>
+      Routes to the server with the lowest average response time. 
+      This is the most accurate measure of server health but requires constant monitoring.
+    </p>
+
+    <pre><code>import java.util.HashMap;
+import java.util.Map;
+
+public class LeastResponseTimeLoadBalancer {
+    private final Map<String, ServerInfo> servers = new HashMap<>();
+
+    public LeastResponseTimeLoadBalancer() {
+        servers.put("S1", new ServerInfo(45, 10));
+        servers.put("S2", new ServerInfo(120, 8));
+        servers.put("S3", new ServerInfo(30, 15));
+    }
+
+    public String leastResponseTime() {
+        String bestServer = null;
+        int minResponseTime = Integer.MAX_VALUE;
+
+        for (Map.Entry<String, ServerInfo> entry : servers.entrySet()) {
+            if (entry.getValue().avgResponseMs < minResponseTime) {
+                minResponseTime = entry.getValue().avgResponseMs;
+                bestServer = entry.getKey();
+            }
+        }
+        return bestServer;
+    }
+
+    public void routeRequest() {
+        String server = leastResponseTime();
+        System.out.println("Request routed to " + server + " (" + servers.get(server).avgResponseMs + "ms)");
+    }
+
+    public static void main(String[] args) {
+        LeastResponseTimeLoadBalancer lb = new LeastResponseTimeLoadBalancer();
+        lb.routeRequest();  // S3 (30ms)
+    }
+
+    static class ServerInfo {
+        int avgResponseMs;
+        int connections;
+
+        ServerInfo(int avgResponseMs, int connections) {
+            this.avgResponseMs = avgResponseMs;
+            this.connections = connections;
+        }
+    }
+}</code></pre>
+
+    <div class="info-box">
+      <strong>💡 Why Response Time Matters</strong>
+      A server might have few connections but each connection is doing heavy work (e.g., complex DB queries). 
+      Response time captures this better than connection count alone.
+    </div>
+
+    <h2>4. Resource-Based (Agent-Based)</h2>
+    <p>
+      An agent running on each server reports real-time metrics (CPU, memory, disk I/O) to the load balancer. 
+      The LB routes based on which server has the most free resources.
+    </p>
+
+    <table>
+      <tr><th>Server</th><th>CPU %</th><th>Memory %</th><th>Free Resources</th></tr>
+      <tr><td>S1</td><td>85%</td><td>70%</td><td>Low</td></tr>
+      <tr><td>S2</td><td>40%</td><td>50%</td><td>High ✅</td></tr>
+      <tr><td>S3</td><td>60%</td><td>80%</td><td>Medium</td></tr>
+    </table>
+
+    <h2>Comparison: Static vs Dynamic</h2>
+    <table>
+      <tr><th>Aspect</th><th>Static (Round Robin)</th><th>Dynamic (Least Connections)</th></tr>
+      <tr><td>Server State</td><td>Ignores it</td><td>Monitors active connections</td></tr>
+      <tr><td>Adaptability</td><td>None</td><td>Adapts to traffic spikes</td></tr>
+      <tr><td>Complexity</td><td>Very low</td><td>Moderate</td></tr>
+      <tr><td>Overhead</td><td>None</td><td>Connection tracking</td></tr>
+      <tr><td>Best For</td><td>Homogeneous, stable load</td><td>Variable load, long requests</td></tr>
+    </table>
+
+    <div class="info-box success">
+      <strong>✅ When to Use Dynamic LB</strong>
+      <ul style="margin: 10px 0 0 20px;">
+        <li>Requests have varying processing times (some fast, some slow)</li>
+        <li>Traffic patterns are unpredictable</li>
+        <li>Servers have different capacities</li>
+        <li>You need to handle traffic spikes gracefully</li>
+      </ul>
+    </div>
+
+    <div class="info-box warning">
+      <strong>❌ Downsides</strong>
+      <ul style="margin: 10px 0 0 20px;">
+        <li>More complex to implement and debug</li>
+        <li>Requires health checks and monitoring overhead</li>
+        <li>Response time measurement adds latency</li>
+        <li>Can be "too reactive" — oscillates between servers</li>
+      </ul>
+    </div>
+
+    <div class="info-box" style="margin-top: 30px;">
+      <strong>📝 Interview Tip</strong>
+      "In production, I would start with Least Connections for most web applications. 
+      For compute-heavy workloads (like ML inference), I'd use Resource-Based load balancing 
+      because CPU is the real bottleneck, not connection count."
+    </div>
+  </main>
+</body>
+</html>

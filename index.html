@@ -1,0 +1,65 @@
+<!-- Root Dashboard (links to HLD, LLD, DSA) -->
+<!-- # Root index.html - Dashboard -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Study Notes - Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-header">
+      <h2>Study Notes</h2>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Main Topics</div>
+      <a href="HLD/index.html" class="active">🌐 High Level Design</a>
+      <a href="LLD/index.html">⚙️ Low Level Design</a>
+      <a href="DSA/index.html">📊 Data Structures & Algo</a>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <div class="breadcrumb">
+      <span>🏠 Home</span>
+    </div>
+
+    <h1>Welcome to Your Study Notes</h1>
+    <p style="color: var(--text-light); margin-bottom: 30px;">
+      A structured, lightweight, and fast reference for your technical interview preparation.
+      Pick a topic below to get started.
+    </p>
+
+    <div class="card-grid">
+      <a href="HLD/index.html" class="card">
+        <div class="card-icon">🌐</div>
+        <h3>High Level Design</h3>
+        <p>System design concepts, scalability, load balancing, caching, database scaling, and microservices.</p>
+      </a>
+
+      <a href="LLD/index.html" class="card">
+        <div class="card-icon">⚙️</div>
+        <h3>Low Level Design</h3>
+        <p>SOLID principles, design patterns, UML diagrams, and object-oriented design fundamentals.</p>
+      </a>
+
+      <a href="DSA/index.html" class="card">
+        <div class="card-icon">📊</div>
+        <h3>DSA</h3>
+        <p>Data structures, algorithms, problem-solving patterns, and complexity analysis.</p>
+      </a>
+    </div>
+
+    <div class="info-box" style="margin-top: 40px;">
+      <strong>💡 Tip</strong>
+      Use the sidebar on the left to quickly jump between topics. Each page has breadcrumbs at the top so you never lose track of where you are.
+    </div>
+  </main>
+</body>
+</html>
+

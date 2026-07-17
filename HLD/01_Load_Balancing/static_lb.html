@@ -1,0 +1,219 @@
+<!-- # HLD/01_Load_Balancing/static_lb.html - Leaf Content Page (detailed study content) -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Static Load Balancing - HLD</title>
+  <link rel="stylesheet" href="../../styles.css">
+</head>
+<body>
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-header">
+      <h2>Study Notes</h2>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Navigation</div>
+      <a href="../../index.html">🏠 Dashboard</a>
+      <a href="../index.html">🌐 HLD Overview</a>
+      <a href="index.html">⚖️ Load Balancing</a>
+      <a href="static_lb.html" class="active">📄 Static LB</a>
+      <a href="dynamic_lb.html" class="sub-link">↳ Dynamic LB</a>
+      <a href="sticky_sessions.html" class="sub-link">↳ Sticky Sessions</a>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <div class="breadcrumb">
+      <a href="../../index.html">Home</a>
+      <span class="sep">/</span>
+      <a href="../index.html">HLD</a>
+      <span class="sep">/</span>
+      <a href="index.html">Load Balancing</a>
+      <span class="sep">/</span>
+      <span>Static Load Balancing</span>
+    </div>
+
+    <h1>Static Load Balancing</h1>
+    <p style="color: var(--text-light);">
+      Algorithms that distribute traffic without considering the current state of the servers.
+      Simple, fast, and predictable — but not adaptive.
+    </p>
+
+    <h2>1. Round Robin</h2>
+    <p>
+      Requests are distributed sequentially across the server pool. 
+      Server 1 gets request 1, Server 2 gets request 2, and so on. After the last server, it loops back to the first.
+    </p>
+
+    <div class="info-box">
+      <strong>🔑 Key Idea</strong>
+      Think of it like dealing cards to players — each player gets one card at a time in rotation.
+    </div>
+
+    <h3>Example Scenario</h3>
+    <p>Imagine 3 servers: <code>S1</code>, <code>S2</code>, <code>S3</code>. Here is how 6 requests are distributed:</p>
+
+    <table>
+      <tr>
+        <th>Request #</th>
+        <th>Server Assigned</th>
+        <th>Logic</th>
+      </tr>
+      <tr><td>1</td><td>S1</td><td>Start from first server</td></tr>
+      <tr><td>2</td><td>S2</td><td>Move to next</td></tr>
+      <tr><td>3</td><td>S3</td><td>Move to next</td></tr>
+      <tr><td>4</td><td>S1</td><td>Loop back to first</td></tr>
+      <tr><td>5</td><td>S2</td><td>Continue rotation</td></tr>
+      <tr><td>6</td><td>S3</td><td>Continue rotation</td></tr>
+    </table>
+
+    <h3>Simple Code Simulation</h3>
+    <pre><code>import java.util.List;
+
+public class RoundRobinLoadBalancer {
+    private final List<String> servers;
+    private int currentIndex = 0;
+
+    public RoundRobinLoadBalancer(List<String> servers) {
+        this.servers = servers;
+    }
+
+    public synchronized String getServer() {
+        String server = servers.get(currentIndex);
+        currentIndex = (currentIndex + 1) % servers.size();
+        return server;
+    }
+
+    public static void main(String[] args) {
+        List<String> servers = List.of("S1", "S2", "S3");
+        RoundRobinLoadBalancer lb = new RoundRobinLoadBalancer(servers);
+
+        for (int i = 1; i <= 6; i++) {
+            System.out.println("Request " + i + " → " + lb.getServer());
+        }
+    }
+}
+
+// Output:
+// Request 1 → S1
+// Request 2 → S2
+// Request 3 → S3
+// Request 4 → S1
+// Request 5 → S2
+// Request 6 → S3</code></pre>
+
+    <div class="info-box warning">
+      <strong>⚠️ When Round Robin Fails</strong>
+      If <code>S1</code> is a powerful machine and <code>S3</code> is a weak one, 
+      Round Robin treats them equally. A heavy request going to <code>S3</code> might crash it 
+      while <code>S1</code> sits idle.
+    </div>
+
+    <h2>2. Weighted Round Robin</h2>
+    <p>
+      Assigns a "weight" to each server based on its capacity. A server with weight 3 gets 3x more requests than a server with weight 1.
+    </p>
+
+    <table>
+      <tr>
+        <th>Server</th>
+        <th>Weight</th>
+        <th>Requests per cycle</th>
+      </tr>
+      <tr><td>S1 (Powerful)</td><td>3</td><td>3 requests</td></tr>
+      <tr><td>S2 (Medium)</td><td>2</td><td>2 requests</td></tr>
+      <tr><td>S3 (Weak)</td><td>1</td><td>1 request</td></tr>
+    </table>
+
+    <p>A full cycle of 6 requests would look like: <code>S1, S1, S1, S2, S2, S3</code></p>
+
+    <h2>3. IP Hash</h2>
+    <p>
+      The client's IP address is hashed to determine which server receives the request. 
+      The same client always hits the same server.
+    </p>
+
+    <pre><code>import java.util.List;
+
+public class IpHashLoadBalancer {
+    private final List<String> servers;
+
+    public IpHashLoadBalancer(List<String> servers) {
+        this.servers = servers;
+    }
+
+    public String getServer(String clientIp) {
+        int hashValue = clientIp.hashCode();
+        int index = Math.abs(hashValue) % servers.size();
+        return servers.get(index);
+    }
+
+    public static void main(String[] args) {
+        List<String> servers = List.of("S1", "S2", "S3");
+        IpHashLoadBalancer lb = new IpHashLoadBalancer(servers);
+
+        System.out.println(lb.getServer("192.168.1.10"));  // → S1
+        System.out.println(lb.getServer("192.168.1.20"));  // → S1
+        System.out.println(lb.getServer("192.168.1.30"));  // → S1
+
+        // Note: All 3 clients might hash to the same server!
+        // That's why consistent hashing is preferred in practice.
+    }
+}</code></pre>
+
+    <div class="info-box success">
+      <strong>✅ Pros of Static LB</strong>
+      <ul style="margin: 10px 0 0 20px;">
+        <li>Very simple to implement and understand</li>
+        <li>No overhead of tracking server health or load</li>
+        <li>Predictable behavior — easy to debug</li>
+        <li>IP Hash provides natural session affinity</li>
+      </ul>
+    </div>
+
+    <div class="info-box warning">
+      <strong>❌ Cons of Static LB</strong>
+      <ul style="margin: 10px 0 0 20px;">
+        <li>Ignores server health — sends traffic to crashed servers</li>
+        <li>Ignores current load — a busy server gets the same traffic as an idle one</li>
+        <li>IP Hash can create hotspots (many clients hashing to same server)</li>
+        <li>Not suitable for servers with different capacities (without weights)</li>
+      </ul>
+    </div>
+
+    <h2>Quick Comparison</h2>
+    <table>
+      <tr>
+        <th>Algorithm</th>
+        <th>Best For</th>
+        <th>Avoid When</th>
+      </tr>
+      <tr>
+        <td>Round Robin</td>
+        <td>Homogeneous servers, equal load</td>
+        <td>Servers have different capacities</td>
+      </tr>
+      <tr>
+        <td>Weighted Round Robin</td>
+        <td>Heterogeneous servers</td>
+        <td>Server load fluctuates rapidly</td>
+      </tr>
+      <tr>
+        <td>IP Hash</td>
+        <td>Need session persistence</td>
+        <td>Clients are behind NAT (same IP)</td>
+      </tr>
+    </table>
+
+    <div class="info-box" style="margin-top: 30px;">
+      <strong>📝 Interview Tip</strong>
+      In interviews, always mention: "Round Robin is a good starting point, but in production 
+      we usually use dynamic algorithms like Least Connections because they adapt to real-time conditions."
+    </div>
+  </main>
+</body>
+</html>

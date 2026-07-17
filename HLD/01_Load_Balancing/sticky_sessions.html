@@ -1,0 +1,225 @@
+<!-- # HLD/01_Load_Balancing/sticky_sessions.html - Leaf Content Page -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sticky Sessions - HLD</title>
+  <link rel="stylesheet" href="../../styles.css">
+</head>
+<body>
+  <nav class="sidebar">
+    <div class="sidebar-header"><h2>Study Notes</h2></div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Navigation</div>
+      <a href="../../index.html">🏠 Dashboard</a>
+      <a href="../index.html">🌐 HLD Overview</a>
+      <a href="index.html">⚖️ Load Balancing</a>
+      <a href="static_lb.html" class="sub-link">↳ Static LB</a>
+      <a href="dynamic_lb.html" class="sub-link">↳ Dynamic LB</a>
+      <a href="sticky_sessions.html" class="active">📄 Sticky Sessions</a>
+    </div>
+  </nav>
+
+  <main class="main-content">
+    <div class="breadcrumb">
+      <a href="../../index.html">Home</a><span class="sep">/</span>
+      <a href="../index.html">HLD</a><span class="sep">/</span>
+      <a href="index.html">Load Balancing</a><span class="sep">/</span>
+      <span>Sticky Sessions</span>
+    </div>
+
+    <h1>Sticky Sessions (Session Affinity)</h1>
+    <p style="color: var(--text-light);">
+      Ensures all requests from a specific client are routed to the same server throughout their session.
+      Critical for applications that store session data locally on the server.
+    </p>
+
+    <h2>Why Do We Need Sticky Sessions?</h2>
+    <p>Imagine a shopping cart application:</p>
+    <ol>
+      <li>User adds Item A to cart → Request goes to <strong>Server 1</strong> → Cart stored in Server 1's memory</li>
+      <li>User adds Item B to cart → Request goes to <strong>Server 2</strong> → Server 2 has no cart data!</li>
+      <li>User sees only Item B in cart → <strong>Data is lost!</strong></li>
+    </ol>
+
+    <div class="info-box warning">
+      <strong>🚨 The Problem</strong>
+      Without sticky sessions, each request from the same user might hit a different server. 
+      If session data is stored locally (in-memory), the user experience breaks.
+    </div>
+
+    <h2>How Sticky Sessions Work</h2>
+    <p>The load balancer uses a "sticky key" to identify the client and always route them to the same server.</p>
+
+    <h3>Common Sticky Keys</h3>
+    <table>
+      <tr><th>Method</th><th>What It Uses</th><th>Pros</th><th>Cons</th></tr>
+      <tr>
+        <td>IP Hash</td>
+        <td>Client IP address</td>
+        <td>Simple, no cookies needed</td>
+        <td>Breaks with NAT (many users share one IP)</td>
+      </tr>
+      <tr>
+        <td>Cookie-Based</td>
+        <td>Browser cookie (e.g., <code>SERVERID=S1</code>)</td>
+        <td>Works through NAT/proxies</td>
+        <td>Requires cookie support, privacy concerns</td>
+      </tr>
+      <tr>
+        <td>URL Parameter</td>
+        <td>Query string (e.g., <code>?server=S1</code>)</td>
+        <td>Works without cookies</td>
+        <td>Ugly URLs, SEO issues</td>
+      </tr>
+    </table>
+
+    <h2>Cookie-Based Sticky Sessions (Most Common)</h2>
+    <p>Here's how it works step by step:</p>
+
+    <pre><code># Step 1: First Request (no cookie yet)
+Client ──► Load Balancer ──► Server 1
+                              └── Creates session
+                              └── Sets cookie: SERVERID=S1
+
+# Step 2: Load Balancer adds cookie to response
+Client ◄── Load Balancer ◄── Server 1
+     (receives SERVERID=S1 cookie)
+
+# Step 3: Second Request (client sends cookie)
+Client ──► Load Balancer ──► Server 1
+     (sends SERVERID=S1)        └── Reads cookie
+                              └── Routes to S1
+
+# Step 4: All future requests go to S1
+Client ──► Load Balancer ──► Server 1
+     (SERVERID=S1)              └── Same session!</code></pre>
+
+    <h3>Example: Nginx Configuration</h3>
+    <pre><code>upstream backend {
+    server 10.0.0.1:8080;
+    server 10.0.0.2:8080;
+    server 10.0.0.3:8080;
+}
+
+server {
+    location / {
+        proxy_pass http://backend;
+        
+        # Enable sticky sessions with cookie
+        sticky cookie srv_id expires=1h domain=.example.com path=/;
+    }
+}</code></pre>
+
+    <h2>What Happens When the Sticky Server Goes Down?</h2>
+    <p>This is the biggest challenge with sticky sessions.</p>
+
+    <table>
+      <tr><th>Scenario</th><th>What Happens</th><th>Solution</th></tr>
+      <tr>
+        <td>Server crashes</td>
+        <td>User's session is lost</td>
+        <td>Session replication across servers</td>
+      </tr>
+      <tr>
+        <td>Server removed for maintenance</td>
+        <td>User gets redirected to new server</td>
+        <td>Graceful session migration</td>
+      </tr>
+      <tr>
+        <td>Server overloaded</td>
+        <td>User stuck on slow server</td>
+        <td>Break stickiness for health reasons</td>
+      </tr>
+    </table>
+
+    <div class="info-box">
+      <strong>💡 Better Alternative: Session Externalization</strong>
+      Instead of storing sessions on individual servers, store them in a shared store like 
+      <strong>Redis</strong> or <strong>Memcached</strong>. Then sticky sessions become unnecessary 
+      — any server can handle any request because session data is centralized.
+    </div>
+
+    <h2>Code Example: Simulating Sticky Sessions</h2>
+    <pre><code>import java.util.*;
+
+public class StickyLoadBalancer {
+    private final List<Server> servers;
+    private final Map<String, Server> sessionMap = new HashMap<>();
+
+    public StickyLoadBalancer(List<Server> servers) {
+        this.servers = servers;
+    }
+
+    public synchronized Server route(String userId) {
+        Server server;
+        if (sessionMap.containsKey(userId)) {
+            // Existing user → same server
+            server = sessionMap.get(userId);
+            System.out.println("User " + userId + " → " + server.name + " (sticky)");
+        } else {
+            // New user → pick least loaded server
+            server = Collections.min(servers, Comparator.comparingInt(s -> s.load));
+            sessionMap.put(userId, server);
+            server.load++;
+            System.out.println("User " + userId + " → " + server.name + " (new)");
+        }
+        return server;
+    }
+
+    public static void main(String[] args) {
+        List<Server> servers = Arrays.asList(
+            new Server("S1", 0),
+            new Server("S2", 0),
+            new Server("S3", 0)
+        );
+
+        StickyLoadBalancer lb = new StickyLoadBalancer(servers);
+        lb.route("user_101");  // New → S1
+        lb.route("user_102");  // New → S2 (S1 has 1 connection)
+        lb.route("user_101");  // Existing → S1 (sticky!)
+    }
+
+    static class Server {
+        String name;
+        int load;
+
+        Server(String name, int load) {
+            this.name = name;
+            this.load = load;
+        }
+    }
+}</code></pre>
+
+    <h2>When to Use (and When NOT to Use)</h2>
+
+    <div class="info-box success">
+      <strong>✅ Use Sticky Sessions When:</strong>
+      <ul style="margin: 10px 0 0 20px;">
+        <li>Session data is stored in server memory (legacy apps)</li>
+        <li>Real-time connections (WebSockets) need the same server</li>
+        <li>File uploads are processed in chunks across multiple requests</li>
+        <li>You can't change the application architecture right now</li>
+      </ul>
+    </div>
+
+    <div class="info-box warning">
+      <strong>❌ Avoid Sticky Sessions When:</strong>
+      <ul style="margin: 10px 0 0 20px;">
+        <li>You can use external session stores (Redis, DB)</li>
+        <li>You need true horizontal scaling (sticky = less scalable)</li>
+        <li>Server failures would cause significant user disruption</li>
+        <li>You want simple, stateless server architecture</li>
+      </ul>
+    </div>
+
+    <div class="info-box" style="margin-top: 30px;">
+      <strong>📝 Interview Tip</strong>
+      "I prefer external session stores over sticky sessions because they make the system truly stateless 
+      and horizontally scalable. Sticky sessions are a workaround for legacy systems that can't be refactored easily."
+    </div>
+  </main>
+</body>
+</html>

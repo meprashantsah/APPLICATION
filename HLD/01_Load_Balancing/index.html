@@ -1,0 +1,74 @@
+
+<!-- # HLD/01_Load_Balancing/index.html - Sub-Topic Index Page-->
+ 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Load Balancing - HLD</title>
+  <link rel="stylesheet" href="../../styles.css">
+</head>
+<body>
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-header">
+      <h2>Study Notes</h2>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Navigation</div>
+      <a href="../../index.html">🏠 Dashboard</a>
+      <a href="../index.html">🌐 HLD Overview</a>
+      <a href="index.html" class="active">⚖️ Load Balancing</a>
+      <a href="static_lb.html" class="sub-link">↳ Static Load Balancing</a>
+      <a href="dynamic_lb.html" class="sub-link">↳ Dynamic Load Balancing</a>
+      <a href="sticky_sessions.html" class="sub-link">↳ Sticky Sessions</a>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <div class="breadcrumb">
+      <a href="../../index.html">Home</a>
+      <span class="sep">/</span>
+      <a href="../index.html">HLD</a>
+      <span class="sep">/</span>
+      <span>Load Balancing</span>
+    </div>
+
+    <h1>⚖️ Load Balancing</h1>
+    <p style="color: var(--text-light); margin-bottom: 30px;">
+      Distribute incoming traffic across multiple servers to ensure no single server becomes a bottleneck.
+    </p>
+
+    <h2>Pages in this Topic</h2>
+    <ul class="topic-list">
+      <li>
+        <a href="static_lb.html">
+          <span class="topic-name">Static Load Balancing</span>
+          <span class="topic-count">Round Robin, IP Hash</span>
+        </a>
+      </li>
+      <li>
+        <a href="dynamic_lb.html">
+          <span class="topic-name">Dynamic Load Balancing</span>
+          <span class="topic-count">Least Connections, Least Response Time</span>
+        </a>
+      </li>
+      <li>
+        <a href="sticky_sessions.html">
+          <span class="topic-name">Sticky Sessions</span>
+          <span class="topic-count">Session Affinity</span>
+        </a>
+      </li>
+    </ul>
+
+    <div class="info-box">
+      <strong>💡 Quick Definition</strong>
+      A <strong>Load Balancer</strong> acts as a traffic cop sitting in front of your servers. 
+      It routes client requests across all servers capable of fulfilling those requests, 
+      maximizing speed and capacity utilization.
+    </div>
+  </main>
+</body>
+</html>
